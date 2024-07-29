@@ -226,6 +226,30 @@ var _ = ginkgo.Describe("LeaderWorkerSet controller", func() {
 				},
 			},
 		}),
+		ginkgo.Entry("headless service created with multiple replicas and no headless service per group", &testCase{
+			makeLeaderWorkerSet: func(nsName string) *testing.LeaderWorkerSetWrapper {
+				return testing.BuildLeaderWorkerSet(nsName).Replica(3).HeadlessServicePerLeaderWorker(false)
+			},
+			updates: []*update{
+				{
+					checkLWSState: func(lws *leaderworkerset.LeaderWorkerSet) {
+						testing.ExpectValidServices(ctx, k8sClient, lws)
+					},
+				},
+			},
+		}),
+		ginkgo.Entry("headless service created with multiple replicas and headless service per group", &testCase{
+			makeLeaderWorkerSet: func(nsName string) *testing.LeaderWorkerSetWrapper {
+				return testing.BuildLeaderWorkerSet(nsName).Replica(3).HeadlessServicePerLeaderWorker(true)
+			},
+			updates: []*update{
+				{
+					checkLWSState: func(lws *leaderworkerset.LeaderWorkerSet) {
+						testing.ExpectValidServicesPerGroup(ctx, k8sClient, lws)
+					},
+				},
+			},
+		}),
 		ginkgo.Entry("service deleted will be recreated", &testCase{
 			makeLeaderWorkerSet: testing.BuildLeaderWorkerSet,
 			updates: []*update{

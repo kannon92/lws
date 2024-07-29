@@ -115,6 +115,10 @@ type LeaderWorkerSetSpec struct {
 	// +kubebuilder:validation:Enum={LeaderCreated,LeaderReady}
 	// +optional
 	StartupPolicy StartupPolicyType `json:"startupPolicy"`
+
+	// TODO comment this
+	// +optional
+	HeadlessServicePerLeaderWorker *bool `json:"headlessServicePerLeaderWorker"`
 }
 
 // Template of the leader/worker pods, the group will include at least one leader pod.

@@ -104,6 +104,11 @@ func (lwsWrapper *LeaderWorkerSetWrapper) SubGroupSize(subGroupSize int32) *Lead
 	return lwsWrapper
 }
 
+func (lwsWrapper *LeaderWorkerSetWrapper) HeadlessServicePerLeaderWorker(headlessServicePerWorker bool) *LeaderWorkerSetWrapper {
+	lwsWrapper.Spec.HeadlessServicePerLeaderWorker = &headlessServicePerWorker
+	return lwsWrapper
+}
+
 func BuildBasicLeaderWorkerSet(name, ns string) *LeaderWorkerSetWrapper {
 	return &LeaderWorkerSetWrapper{
 		leaderworkerset.LeaderWorkerSet{

@@ -53,6 +53,9 @@ spec:
               gets a workerIndex, and it is always set to 0.
               Worker pods are named using the format: leaderWorkerSetName-leaderIndex-workerIndex.
             properties:
+              headlessServicePerLeaderWorker:
+                description: TODO comment this
+                type: boolean
               leaderWorkerTemplate:
                 description: LeaderWorkerTemplate defines the template for leader/worker
                   pods

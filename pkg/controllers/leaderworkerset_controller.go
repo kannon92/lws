@@ -106,11 +106,20 @@ func (r *LeaderWorkerSetReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// Create headless service if it does not exist.
-	if err := r.createHeadlessServiceIfNotExists(ctx, lws); err != nil {
-		log.Error(err, "Creating headless service.")
-		r.Record.Eventf(lws, corev1.EventTypeWarning, FailedCreate,
-			fmt.Sprintf("Failed to create headless service for error: %v", err))
-		return ctrl.Result{}, err
+	if !ptr.Deref(lws.Spec.HeadlessServicePerLeaderWorker, false) {
+		if err := r.createHeadlessServiceIfNotExists(ctx, lws); err != nil {
+			log.Error(err, "Creating headless service.")
+			r.Record.Eventf(lws, corev1.EventTypeWarning, FailedCreate,
+				fmt.Sprintf("Failed to create headless service for error: %v", err))
+			return ctrl.Result{}, err
+		}
+	} else {
+		if err := r.createHeadlessServicePerLeaderWorkerGroup(ctx, lws); err != nil {
+			log.Error(err, "Creating headless service.")
+			r.Record.Eventf(lws, corev1.EventTypeWarning, FailedCreate,
+				fmt.Sprintf("Failed to create headless service per leader worker group: %v", err))
+			return ctrl.Result{}, err
+		}
 	}
 
 	err = r.updateStatus(ctx, lws)
@@ -151,6 +160,44 @@ func (r *LeaderWorkerSetReconciler) createHeadlessServiceIfNotExists(ctx context
 		log.V(2).Info("Creating headless service.")
 		if err := r.Create(ctx, &headlessService); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (r *LeaderWorkerSetReconciler) createHeadlessServicePerLeaderWorkerGroup(ctx context.Context, lws *leaderworkerset.LeaderWorkerSet) error {
+	replicas := ptr.Deref(lws.Spec.Replicas, 1)
+	log := ctrl.LoggerFrom(ctx)
+	// If the headless service does not exist in the namespace, create it.
+	for i := 0; i < int(replicas); i++ {
+		namePerReplica := fmt.Sprintf("%s-%d", lws.Name, i)
+		var headlessService corev1.Service
+		if err := r.Get(ctx, types.NamespacedName{Name: namePerReplica, Namespace: lws.Namespace}, &headlessService); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return err
+			}
+			headlessService := corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      namePerReplica,
+					Namespace: lws.Namespace,
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "None", // defines service as headless
+					Selector: map[string]string{
+						leaderworkerset.SetNameLabelKey: namePerReplica,
+					},
+					PublishNotReadyAddresses: true,
+				},
+			}
+			// Set the controller owner reference for garbage collection and reconciliation.
+			if err := ctrl.SetControllerReference(lws, &headlessService, r.Scheme); err != nil {
+				return err
+			}
+			// create the service in the cluster
+			log.V(2).Info("Creating headless service.")
+			if err := r.Create(ctx, &headlessService); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

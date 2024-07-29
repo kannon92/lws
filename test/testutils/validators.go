@@ -30,6 +30,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	leaderworkerset "sigs.k8s.io/lws/api/leaderworkerset/v1"
@@ -77,6 +78,17 @@ func ExpectValidServices(ctx context.Context, k8sClient client.Client, lws *lead
 			return false, errors.New("selector name incorrect")
 		}
 		return true, nil
+	}, Timeout, Interval).Should(gomega.Equal(true))
+}
+
+func ExpectValidServicesPerGroup(ctx context.Context, k8sClient client.Client, lws *leaderworkerset.LeaderWorkerSet) {
+	gomega.Eventually(func() (bool, error) {
+		var headlessServices corev1.ServiceList
+		if err := k8sClient.List(ctx, &headlessServices, client.InNamespace(lws.Namespace)); err != nil {
+			return false, err
+		}
+
+		return ptr.Deref(lws.Spec.Replicas, 1) == int32(len(headlessServices.Items)), nil
 	}, Timeout, Interval).Should(gomega.Equal(true))
 }
 
